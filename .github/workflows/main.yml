@@ -1,1 +1,16 @@
-.
+name: Vulnerable Workflow Test
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inject user input into shell
+        # سەرنج بدە: لێرەدا Input-ی بەکارهێنەر ڕاستەوخۆ دەچێتە ناو shell
+        run: |
+          echo "Processing comment: ${{ github.event.comment.body }}"
+          # ئەمە بەشە لاوازەکەیە:
+          bash -c "echo Your comment was: ${{ github.event.comment.body }}"
