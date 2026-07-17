@@ -1,16 +1,19 @@
-name: Vulnerable Workflow Test
+name: RCE Analysis Pipeline
 
 on:
-  issue_comment:
-    types: [created]
+  pull_request:
+    types: [opened, synchronize]
 
 jobs:
-  build:
+  test_injection:
     runs-on: ubuntu-latest
     steps:
-      - name: Inject user input into shell
-        # سەرنج بدە: لێرەدا Input-ی بەکارهێنەر ڕاستەوخۆ دەچێتە ناو shell
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Vulnerable Input Processing
+        # ئەم بەشە Input-یەک لە ناوی Branch یان Titleـی PR وەردەگرێت
         run: |
-          echo "Processing comment: ${{ github.event.comment.body }}"
-          # ئەمە بەشە لاوازەکەیە:
-          bash -c "echo Your comment was: ${{ github.event.comment.body }}"
+          TITLE="${{ github.event.pull_request.title }}"
+          echo "Processing PR: $TITLE"
+          eval "echo $TITLE"
